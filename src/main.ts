@@ -8,7 +8,9 @@ import {checkoutBaseState} from './gitops'
 
 const TOKEN = 'gh-token'
 const TS_ROOTS = 'ts-roots'
-const RS_ROOTS = 'rust-roots'
+const RS_ROOTS = 'rs-roots'
+const GO_ROOTS = 'go-roots'
+const PY_ROOTS = 'py-roots'
 const RETENTION = 'retention-days'
 const AM_VERSION = 'am-version'
 
@@ -22,6 +24,8 @@ async function run(): Promise<void> {
     })
     const tsRoots = core.getMultilineInput(TS_ROOTS)
     const rsRoots = core.getMultilineInput(RS_ROOTS)
+    const goRoots = core.getMultilineInput(GO_ROOTS)
+    const pyRoots = core.getMultilineInput(PY_ROOTS)
     const retention = parseInt(core.getInput(RETENTION))
     const amVersion =
       core.getInput(AM_VERSION) !== '' ? core.getInput(AM_VERSION) : undefined
@@ -33,12 +37,17 @@ async function run(): Promise<void> {
     core.startGroup('[head] Building datasets for head branch')
     const newAmDatasets: DataSetMap = {}
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const goRoot of goRoots) {
+      newAmDatasets[goRoot] = await computeDataSet(amPath, goRoot, 'go')
+    }
     for (const tsRoot of tsRoots) {
-      core.warning('Typescript is not supported by am_list yet.')
+      newAmDatasets[tsRoot] = await computeDataSet(amPath, tsRoot, 'typescript')
     }
     for (const rsRoot of rsRoots) {
       newAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
+    }
+    for (const pyRoot of pyRoots) {
+      newAmDatasets[pyRoot] = await computeDataSet(amPath, pyRoot, 'python')
     }
 
     const headSha = payload.pull_request?.head.sha ?? payload.after
@@ -56,12 +65,17 @@ async function run(): Promise<void> {
     core.startGroup('[base] Building datasets for base state')
     const oldAmDatasets: DataSetMap = {}
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const goRoot of goRoots) {
+      oldAmDatasets[goRoot] = await computeDataSet(amPath, goRoot, 'go')
+    }
     for (const tsRoot of tsRoots) {
-      core.warning('Typescript is not supported by am_list yet.')
+      oldAmDatasets[tsRoot] = await computeDataSet(amPath, tsRoot, 'typescript')
     }
     for (const rsRoot of rsRoots) {
       oldAmDatasets[rsRoot] = await computeDataSet(amPath, rsRoot, 'rust')
+    }
+    for (const pyRoot of pyRoots) {
+      oldAmDatasets[pyRoot] = await computeDataSet(amPath, pyRoot, 'python')
     }
 
     core.info(JSON.stringify(oldAmDatasets, undefined, 2))

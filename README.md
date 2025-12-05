@@ -1,23 +1,39 @@
-# Autometrics Metrics Report
+# Autometrics Report
 
-A Github action that comments on PRs to tell you how metrics are going to be affected
+This GitHub action will comment on Pull Requests to tell you how metrics are
+going to be affected.
 
-<!-- Put a screen shot of the PR comment here. -->
+The report tells you immediately if your new feature is well instrumented, and
+shows a useful summary of the metrics that will be reported without needing to
+go through the diff.
 
-<!-- Put a language support table here. Or at least mention that it's mostly driven by am_list -->
+![An example of generated report on Github](./assets/comment_preview.png)
 
 ## Inputs
 
 - `gh-token`: a github token that gives access to
-  + the PR
-  + the repo
-  + read/write access to comments on issues/PR
-  The permissions added in the
-  "Example Usage" section allow to use the built-in `${{ secrets.GITHUB_TOKEN }}`
-  directly for that.
+
+  - the PR
+  - the repo
+  - read/write access to comments on issues/PR
+
+  **The built-in `${{ secrets.GITHUB_TOKEN }}` will work, you do not need to create a new one.**
+  To make the built-in token work, the job must be given a specific set of permissions. The permissions added in the
+  ["Example Usage" section](#example-usage) show the minimal set of permissions needed.
+
 - `rs-roots`: a list of project roots for rust projects, one root per line.
   The values are given relative to the root of the repository, and should
-  point to the directory containing the `Cargo.toml` directory.
+  point to the directory containing the `Cargo.toml` file.
+- `ts-roots`: a list of project roots for typescript projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the `package.json` file.
+- `go-roots`: a list of project roots for golang projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the `go.mod` file.
+- `py-roots`: a list of project roots for python projects, one root per line.
+  The values are given relative to the root of the repository, and should
+  point to the directory containing the actual module source code. If you have a monorepo,
+  you need to specify the root of each submodule.
 - `retention-days`: the number of days to keep the list of functions as
   [workflow
   artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#about-workflow-artifacts).
@@ -29,24 +45,37 @@ A Github action that comments on PRs to tell you how metrics are going to be aff
   Defaults to an empty string (`""`), which means "download the latest version,
   semver-wise"
 
+|    Argument    | Mandatory |
+| :------------: | :-------: |
+|    gh-token    |    yes    |
+|    rs-roots    |    no     |
+|    ts-roots    |    no     |
+|    go-roots    |    no     |
+|    py-roots    |    no     |
+| retention-days |    no     |
+|   am-version   |    no     |
+
 ## Outputs
 
-This action has no programmatic output to use in further steps. It only writes
-its output as a comment to the PR.
+The action does 2 things:
+
+- it writes comments to pull request giving the monitoring impact of the Pull Request.
+- it saves the data used to compute this report as workflow artifacts. Workflow artifacts
+  stay private to the repository that created them, but this allows for further processing
+  if need be.
 
 ## Example Usage
 
-The job must only contain the diff-metrics step and the checkout one, otherwise the steps that follow
-might see an older version of the repository
+The job must only contain the checkout step and the diff-metrics step, the steps that follow
+within the job would act on an older version of the repository.
 
 ```yaml
-name: Compare Metrics
+name: Metrics report
 
 on: [pull_request]
 
 jobs:
   build:
-
     # The task only runs on linux x64 machines.
     runs-on: ubuntu-latest
 
@@ -58,18 +87,18 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: autometrics-dev/diff-metrics@v1
-      with:
-        gh-token: ${{ secrets.GITHUB_TOKEN }}
-        rust-roots: |
-          .
+      - uses: actions/checkout@v3
+      - uses: autometrics-dev/diff-metrics@v1
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+          rs-roots: |
+            .
 ```
-
 
 ### Mono repo example
 
 In the case of a mono repo that would look like
+
 ```
 .
 ├── project-a
@@ -83,18 +112,47 @@ In the case of a mono repo that would look like
 ├── project-c
 │  ├── README.md
 │  │ ...
+│  └── Cargo.toml
+├── project-d
+│  ├── README.md
+│  │ ...
+│  └── go.mod
+├── project-ts
+│  ├── README.md
+│  │ ...
 │  └── package.json
 └── README.md
 ```
 
 The step using diff-metrics would look like this:
+
 ```yaml
 uses: autometrics-dev/diff-metrics@v1
 with:
   gh-token: ${{ secrets.GITHUB_TOKEN }}
-  rust-roots: |
+  rs-roots: |
     project-a
     project-b
-  ts-roots: |
     project-c
+  go-roots: |
+    project-d
+  ts-roots: |
+    project-ts
 ```
+
+###### Language support
+
+Look at the issues in the repository to see the advancement of language support.
+All languages in the table will be eventually supported.
+
+|                            Language                             | Support  |
+| :-------------------------------------------------------------: | :------: |
+|    [Rust](https://github.com/autometrics-dev/autometrics-rs)    |    ✅    |
+| [Typescript](https://github.com/autometrics-dev/autometrics-ts) |    ✅    |
+|     [Go](https://github.com/autometrics-dev/autometrics-go)     | ⚠️[^mid] |
+|   [Python](https://github.com/autometrics-dev/autometrics-py)   |    ✅    |
+|     [C#](https://github.com/autometrics-dev/autometrics-cs)     |    ❌    |
+
+[^mid]:
+    Golang's version detects functions decorated with `//autometrics` directives, but
+    does not deal with `net/http` middleware wrapper yet.
