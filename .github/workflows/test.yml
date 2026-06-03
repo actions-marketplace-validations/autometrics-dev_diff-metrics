@@ -11,7 +11,7 @@ jobs:
     name: Build diff-metrics locally
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
       - run: |
           npm install
       - run: |
@@ -25,7 +25,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
         name: Checkout repo
       - run: ls -la . && ls -la dist
       - uses: ./
